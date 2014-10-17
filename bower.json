@@ -1,0 +1,12 @@
+{
+  "name": "troopjs-pubsub",
+  "ignore": [
+    "**/.*",
+    "node_modules"
+  ],
+  "dependencies": {
+    "troopjs-core": "~3",
+    "poly": "~0",
+    "when": "~3"
+  }
+}
