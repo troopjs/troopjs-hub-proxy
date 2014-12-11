@@ -2,17 +2,18 @@
  * @license MIT http://troopjs.mit-license.org/
  */
 define([
-	"troopjs-core/component/service",
+	"troopjs-core/component/emitter",
+	"troopjs-core/pubsub/hub",
 	"when",
 	"poly/array",
 	"poly/object"
-], function To2xModule(Service, when) {
+], function (Emitter, local, when) {
 	"use strict";
 
 	/**
-	 * Proxies to 2.x hub
-	 * @class pubsub.proxy.to2x
-	 * @extend core.component.service
+	 * Proxies to hub that returns a {@link Promise promise} that will resolve to the result
+	 * @class pubsub.proxy.promise
+	 * @extend core.component.emitter
 	 */
 
 	var ARRAY_PROTO = Array.prototype;
@@ -26,20 +27,18 @@ define([
 	var HUB = "hub";
 	var ROUTES = "routes";
 	var TOPIC = "topic";
-	var REPUBLISH = "republish";
+	var CONTEXT = "context";
+	var CALLBACK = "callback";
+	var PEEK = "peek";
 
 	/**
 	 * @method constructor
 	 * @param {...Object} routes Routes
 	 */
-	return Service.extend(function To2xService(routes) {
-		var config = {};
-
-		config[ROUTES] = ARRAY_SLICE.call(arguments);
-
-		this.configure(config);
+	return Emitter.extend(function (routes) {
+		this[ROUTES] = ARRAY_SLICE.call(arguments);
 	}, {
-		"displayName" : "pubsub/proxy/to2x",
+		"displayName" : "pubsub/proxy/promise",
 
 		/**
 		 * @inheritdoc
@@ -50,24 +49,28 @@ define([
 			var me = this;
 
 			// Iterate ROUTES
-			me.configure()[ROUTES].forEach(function (routes) {
+			me[ROUTES].forEach(function (routes) {
 				if (!(HUB in routes)) {
 					throw new Error("'" + HUB + "' is missing from routes");
 				}
 
+				var remote = routes[HUB];
 				var publish = routes[PUBLISH] || {};
 				var subscribe = routes[SUBSCRIBE] || {};
-				var hub = routes[HUB];
 
 				// Iterate publish keys
 				OBJECT_KEYS(publish).forEach(function (source) {
 					// Extract target
 					var target = publish[source];
 					var topic;
+					var context;
+					var peek;
 
 					// If target is a string set topic to target
 					if (OBJECT_TOSTRING.call(target) === TOSTRING_STRING) {
 						topic = target;
+						context = me;
+						peek = false;
 					}
 					// Otherwise just grab topic from target
 					else {
@@ -78,23 +81,27 @@ define([
 
 						// Get topic
 						topic = target[TOPIC];
+						context = target[CONTEXT] || me;
+						peek = !!target[PEEK];
 					}
 
 					// Create callback
-					var callback = publish[source] = function () {
+					var callback = function () {
 						// Initialize args with topic as the first argument
 						var args = [ topic ];
 
 						// Push original arguments on args
 						ARRAY_PUSH.apply(args, ARRAY_SLICE.call(arguments));
 
-						return hub.publish.apply(hub, args);
+						return remote.publish.apply(remote, args);
 					};
 
-					// Transfer topic to callback
-					callback[TOPIC] = topic;
+					var _callback = publish[source] = {};
+					_callback[CONTEXT] = context;
+					_callback[CALLBACK] = callback;
+					_callback[PEEK] = peek;
 
-					me.subscribe(source, callback);
+					local.subscribe(source, _callback);
 				});
 
 				// Iterate subscribe keys
@@ -102,12 +109,14 @@ define([
 					// Extract target
 					var target = subscribe[source];
 					var topic;
-					var republish;
+					var context;
+					var peek;
 
 					// If target is a string set topic to target and republish to false
 					if (OBJECT_TOSTRING.call(target) === TOSTRING_STRING) {
 						topic = target;
-						republish = false;
+						context = me;
+						peek = false;
 					}
 					// Otherwise just grab topic and republish from target
 					else {
@@ -118,12 +127,12 @@ define([
 
 						// Get topic
 						topic = target[TOPIC];
-						// Make sure republish is a boolean
-						republish = !!target[REPUBLISH];
+						context = target[CONTEXT] || me;
+						peek = !!target[PEEK];
 					}
 
 					// Create callback
-					var callback = subscribe[source] = function () {
+					var callback = function () {
 						// Initialize args with topic as the first argument
 						var args = [ topic ];
 
@@ -131,14 +140,15 @@ define([
 						ARRAY_PUSH.apply(args, ARRAY_SLICE.call(arguments));
 
 						// Publish and store promise as result
-						return me.publish.apply(me, args);
+						return local.publish.apply(local, args);
 					};
 
-					// Transfer topic and republish to callback
-					callback[TOPIC] = topic;
-					callback[REPUBLISH] = republish;
+					var _callback = {};
+					_callback[CONTEXT] = context;
+					_callback[CALLBACK] = callback;
+					_callback[PEEK] = peek;
 
-					hub.subscribe(source, me, callback);
+					remote.subscribe(source, _callback);
 				});
 			});
 		},
@@ -151,24 +161,39 @@ define([
 		"sig/start" : function () {
 			var me = this;
 			var results = [];
+			var empty = {};
 
 			// Iterate ROUTES
-			me.configure()[ROUTES].forEach(function (routes) {
+			me[ROUTES].forEach(function (routes) {
 				if (!(HUB in routes)) {
 					throw new Error("'" + HUB + "' is missing from routes");
 				}
 
 				var subscribe = routes[SUBSCRIBE] || {};
-				var hub = routes[HUB];
+				var publish = routes[PUBLISH] || {};
+				var remote = routes[HUB];
+
+				// Iterate publish keys
+				OBJECT_KEYS(publish).forEach(function (source) {
+					var _callback = publish[source];
+					var value;
+
+					// Check if we should peek
+					if (_callback[PEEK] === true && (value = local.peek(source, empty)) !== empty) {
+						// Push result from publish on results
+						results.push(remote.publish.apply(local, [ source ].concat(value)));
+					}
+				});
 
 				// Iterate subscribe keys
 				OBJECT_KEYS(subscribe).forEach(function (source) {
-					var callback = subscribe[source];
+					var _callback = subscribe[source];
+					var value;
 
-					// Check if we should republish
-					if (callback[REPUBLISH] === true) {
-						// Push result from republish on results
-						results.push(hub.republish(source, me, callback));
+					// Check if we should peek
+					if (_callback[PEEK] === true && (value = remote.peek(source, empty)) !== empty) {
+						// Push result from publish on results
+						results.push(local.publish.apply(local, [ source ].concat(value)));
 					}
 				});
 			});
@@ -186,23 +211,23 @@ define([
 			var me = this;
 
 			// Iterate ROUTES
-			me.configure()[ROUTES].forEach(function (routes) {
+			me[ROUTES].forEach(function (routes) {
 				if (!(HUB in routes)) {
 					throw new Error("'" + HUB + "' is missing from routes");
 				}
 
 				var publish = routes[PUBLISH] || {};
 				var subscribe = routes[SUBSCRIBE] || {};
-				var hub = routes[HUB];
+				var remote = routes[HUB];
 
 				// Iterate publish keys and unsubscribe
 				OBJECT_KEYS(publish).forEach(function (source) {
-					me.unsubscribe(source, publish[source]);
+					local.unsubscribe(source, publish[source]);
 				});
 
 				// Iterate subscribe keys and unsubscribe
 				OBJECT_KEYS(subscribe).forEach(function (source) {
-					hub.unsubscribe(source, me, subscribe[source]);
+					remote.unsubscribe(source, subscribe[source]);
 				});
 			});
 		}
