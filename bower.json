@@ -1,12 +1,14 @@
 {
   "name": "troopjs-pubsub",
+  "license": "MIT",
   "ignore": [
     "**/.*",
-    "node_modules"
+    "bower_components"
   ],
   "dependencies": {
-    "troopjs-core": "~3",
-    "poly": "~0",
-    "when": "~3"
+    "troopjs-core": "^5",
+    "poly": "^0.6",
+    "when": "^3.4",
+    "mu-merge": "^0"
   }
 }

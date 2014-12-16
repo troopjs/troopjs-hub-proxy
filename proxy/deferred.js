@@ -2,17 +2,18 @@
  * @license MIT http://troopjs.mit-license.org/
  */
 define([
-	"troopjs-core/component/service",
+	"troopjs-core/component/emitter",
+	"troopjs-core/pubsub/hub",
 	"when",
 	"poly/array",
 	"poly/object"
-], function To1xModule(Service, when) {
+], function (Emitter, local, when) {
 	"use strict";
 
 	/**
-	 * Proxies to 1.x hub
-	 * @class pubsub.proxy.to1x
-	 * @extend core.component.service
+	 * Proxies to hub where the last argument is a {@link Deferred deferred}
+	 * @class pubsub.proxy.deferred
+	 * @extend core.component.emitter
 	 */
 
 	var UNDEFINED;
@@ -22,6 +23,8 @@ define([
 	var OBJECT_KEYS = Object.keys;
 	var OBJECT_TOSTRING = Object.prototype.toString;
 	var TOSTRING_STRING = "[object String]";
+	var TOSTRING_ARRAY = "[object Array]";
+	var TOSTRING_ARGUMENTS = "[object Arguments]";
 	var PUBLISH = "publish";
 	var SUBSCRIBE = "subscribe";
 	var HUB = "hub";
@@ -30,20 +33,28 @@ define([
 	var RESOLVE = "resolve";
 	var TOPIC = "topic";
 	var DEFER = "defer";
+	var CONTEXT = "context";
+	var CALLBACK = "callback";
 	var MEMORY = "memory";
+
+	function spread(fn) {
+		return function (result) {
+			var toString_result = OBJECT_TOSTRING.call(result);
+
+			return toString_result === TOSTRING_ARRAY || toString_result === TOSTRING_ARGUMENTS
+				? fn.apply(this, result)
+				: fn.call(this, result);
+		}
+	}
 
 	/**
 	 * @method constructor
 	 * @param {...Object} routes Routes
 	 */
-	return Service.extend(function To1xService(routes) {
-		var config = {};
-
-		config[ROUTES] = ARRAY_SLICE.call(arguments);
-
-		this.configure(config);
+	return Emitter.extend(function (routes) {
+		this[ROUTES] = ARRAY_SLICE.call(arguments);
 	}, {
-		"displayName" : "pubsub/proxy/to1x",
+		"displayName" : "pubsub/proxy/deferred",
 
 		/**
 		 * @inheritdoc
@@ -54,25 +65,28 @@ define([
 			var me = this;
 
 			// Iterate ROUTES
-			me.configure()[ROUTES].forEach(function (routes) {
+			me[ROUTES].forEach(function (routes) {
 				if (!(HUB in routes)) {
 					throw new Error("'" + HUB + "' is missing from routes");
 				}
 
+				// Let `remote` be the deferred hub (ie. TroopJS 1.x hub)
+				var remote = routes[HUB];
 				var publish = routes[PUBLISH] || {};
 				var subscribe = routes[SUBSCRIBE] || {};
-				var hub = routes[HUB];
 
 				// Iterate publish keys
 				OBJECT_KEYS(publish).forEach(function (source) {
 					// Extract target
 					var target = publish[source];
 					var topic;
+					var context;
 					var defer;
 
-					// If target is a string set topic to target and defer to false
+					// If target is a string use defaults
 					if (OBJECT_TOSTRING.call(target) === TOSTRING_STRING) {
 						topic = target;
+						context = me;
 						defer = false;
 					}
 					// Otherwise just grab topic and defer from target
@@ -84,12 +98,14 @@ define([
 
 						// Get topic
 						topic = target[TOPIC];
+						// Get context or default
+						context = target[CONTEXT] || me;
 						// Make sure defer is a boolean
 						defer = !!target[DEFER];
 					}
 
 					// Create callback
-					var callback = publish[source] = function () {
+					var callback = function () {
 						// Initialize args with topic as the first argument
 						var args = [ topic ];
 						var deferred;
@@ -116,7 +132,7 @@ define([
 						}
 
 						// Publish with args
-						hub.publish.apply(hub, args);
+						remote.publish.apply(remote, args);
 
 						// Return promise
 						return deferred
@@ -124,12 +140,12 @@ define([
 							: UNDEFINED;
 					};
 
-					// Transfer topic and defer to callback
-					callback[TOPIC] = topic;
-					callback[DEFER] = defer;
+					var _callback = publish[source] = {};
+					_callback[CONTEXT] = context;
+					_callback[CALLBACK] = callback;
 
-					// Subscribe from me
-					me.subscribe(source, callback);
+					// Subscribe from local
+					local.subscribe(source, _callback);
 				});
 
 				// Iterate subscribe keys
@@ -137,11 +153,13 @@ define([
 					// Extract target
 					var target = subscribe[source];
 					var topic;
+					var context;
 					var memory;
 
-					// If target is not a string, make it into an object
+					// If target is a string use defaults
 					if (OBJECT_TOSTRING.call(target) === TOSTRING_STRING) {
 						topic = target;
+						context = me;
 						memory = false;
 					}
 					// Otherwise just grab from the properties
@@ -153,12 +171,14 @@ define([
 
 						// Get topic
 						topic = target[TOPIC];
+						// Get context or default
+						context = target[CONTEXT] || me;
 						// Make sure memory is a boolean
 						memory = !!target[MEMORY];
 					}
 
 					// Create callback
-					var callback = subscribe[source] = function () {
+					var callback =  function () {
 						// Initialize args with topic as the first argument
 						var args = [ topic ];
 						var deferred;
@@ -168,16 +188,16 @@ define([
 						ARRAY_PUSH.apply(args, ARRAY_SLICE.call(arguments, 1));
 
 						// If the last argument look like a promise we pop and store as deferred
-						if (when.isPromise(args[args[LENGTH] - 1])) {
+						if (when.isPromiseLike(args[args[LENGTH] - 1])) {
 							deferred = args.pop();
 						}
 
-						// Publish and store promise as result
-						result = me.publish.apply(me, args);
+						// Publish on local and store result
+						result = local.publish.apply(local, args);
 
 						// If we have a deferred we should chain it to result
 						if (deferred) {
-							when(result, when.apply(deferred.resolve), deferred.reject, deferred.progress);
+							when(result, spread(deferred.resolve), deferred.reject, deferred.progress);
 						}
 
 						// Return result
@@ -185,12 +205,13 @@ define([
 					};
 
 					// Transfer topic and memory to callback
-					callback[TOPIC] = topic;
-					callback[MEMORY] = memory;
+					var _callback = subscribe[source] = {};
+					_callback[CONTEXT] = context;
+					_callback[CALLBACK] = callback;
 
-					// Subscribe from hub,notice that since we're pushing memory there _is_ a chance that
+					// Subscribe from remote, notice that since we're providing `memory` there _is_ a chance that
 					// we'll get a callback before sig/start
-					hub.subscribe(source, me, memory, callback);
+					remote.subscribe(source, context, memory, callback);
 				});
 			});
 		},
@@ -204,23 +225,27 @@ define([
 			var me = this;
 
 			// Iterate ROUTES
-			me.configure()[ROUTES].forEach(function (routes) {
+			me[ROUTES].forEach(function (routes) {
 				if (!(HUB in routes)) {
 					throw new Error("'" + HUB + "' is missing from routes");
 				}
 
+				// Let `remote` be the deferred hub (ie. TroopJS 1.x hub)
+				var remote = routes[HUB];
 				var publish = routes[PUBLISH] || {};
 				var subscribe = routes[SUBSCRIBE] || {};
-				var hub = routes[HUB];
 
-				// Iterate publish keys and unsubscribe
+				// Iterate publish keys and unsubscribe from local
 				OBJECT_KEYS(publish).forEach(function (source) {
-					me.unsubscribe(source, publish[source]);
+					local.unsubscribe(source, publish[source]);
 				});
 
-				// Iterate subscribe keys and unsubscribe
+				// Iterate subscribe keys and unsubscribe from remote
 				OBJECT_KEYS(subscribe).forEach(function (source) {
-					hub.unsubscribe(source, me, subscribe[source]);
+					var _callback = subscribe[source];
+
+					// Un-subscribe from remote hub
+					remote.unsubscribe(source, _callback[CONTEXT], _callback[CALLBACK]);
 				});
 			});
 		}
