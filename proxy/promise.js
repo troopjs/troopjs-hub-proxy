@@ -4,7 +4,7 @@
 define([
 	"troopjs-core/component/emitter",
 	"troopjs-core/pubsub/hub",
-	"when",
+	"when/when",
 	"poly/array",
 	"poly/object"
 ], function (Emitter, local, when) {
