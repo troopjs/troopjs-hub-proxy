@@ -11,7 +11,7 @@ define([
 	"use strict";
 
 	/**
-	 * Proxies to hub where the last argument is a {@link Deferred deferred}
+	 * Proxies to hub where the last argument is a `deferred`
 	 * @class pubsub.proxy.deferred
 	 * @extend core.component.emitter
 	 */
