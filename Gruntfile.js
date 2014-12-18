@@ -41,9 +41,9 @@ define(['troopjs-pubsub/version'], function (version) {\n\
 					"modules": [{
 						"name": "troopjs-pubsub/main",
 						"exclude": [
-							"when",
-							"poly",
-							"mu-merge",
+							"when/when",
+							"poly/es5",
+							"mu-merge/main",
 							"troopjs-core/component/emitter",
 							"troopjs-core/pubsub/hub"
 						],
