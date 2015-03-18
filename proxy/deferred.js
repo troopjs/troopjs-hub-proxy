@@ -3,7 +3,7 @@
  */
 define([
 	"troopjs-core/component/emitter",
-	"troopjs-core/pubsub/hub",
+	"../emitter",
 	"when/when",
 	"poly/array",
 	"poly/object"
@@ -12,7 +12,7 @@ define([
 
 	/**
 	 * Proxies to hub where the last argument is a `deferred`
-	 * @class pubsub.proxy.deferred
+	 * @class hub.proxy.deferred
 	 * @extend core.component.emitter
 	 */
 
@@ -54,7 +54,7 @@ define([
 	return Emitter.extend(function (routes) {
 		this[ROUTES] = ARRAY_SLICE.call(arguments);
 	}, {
-		"displayName" : "pubsub/proxy/deferred",
+		"displayName" : "hub/proxy/deferred",
 
 		/**
 		 * @inheritdoc
@@ -132,7 +132,7 @@ define([
 						}
 
 						// Publish with args
-						remote.publish.apply(remote, args);
+						remote.emit.apply(remote, args);
 
 						// Return promise
 						return deferred
@@ -145,7 +145,7 @@ define([
 					_callback[CALLBACK] = callback;
 
 					// Subscribe from local
-					local.subscribe(source, _callback);
+					local.on(source, _callback);
 				});
 
 				// Iterate subscribe keys
@@ -193,7 +193,7 @@ define([
 						}
 
 						// Publish on local and store result
-						result = local.publish.apply(local, args);
+						result = local.emit.apply(local, args);
 
 						// If we have a deferred we should chain it to result
 						if (deferred) {
@@ -211,7 +211,7 @@ define([
 
 					// Subscribe from remote, notice that since we're providing `memory` there _is_ a chance that
 					// we'll get a callback before sig/start
-					remote.subscribe(source, context, memory, callback);
+					remote.on(source, context, memory, callback);
 				});
 			});
 		},
@@ -237,7 +237,7 @@ define([
 
 				// Iterate publish keys and unsubscribe from local
 				OBJECT_KEYS(publish).forEach(function (source) {
-					local.unsubscribe(source, publish[source]);
+					local.off(source, publish[source]);
 				});
 
 				// Iterate subscribe keys and unsubscribe from remote
@@ -245,7 +245,7 @@ define([
 					var _callback = subscribe[source];
 
 					// Un-subscribe from remote hub
-					remote.unsubscribe(source, _callback[CONTEXT], _callback[CALLBACK]);
+					remote.off(source, _callback[CONTEXT], _callback[CALLBACK]);
 				});
 			});
 		}

@@ -3,7 +3,7 @@
  */
 define([
 	"troopjs-core/component/emitter",
-	"troopjs-core/pubsub/hub",
+	"../emitter",
 	"when/when",
 	"poly/array",
 	"poly/object"
@@ -12,7 +12,7 @@ define([
 
 	/**
 	 * Proxies to hub that returns a {@link Promise promise} that will resolve to the result
-	 * @class pubsub.proxy.promise
+	 * @class hub.proxy.promise
 	 * @extend core.component.emitter
 	 */
 
@@ -38,7 +38,7 @@ define([
 	return Emitter.extend(function (routes) {
 		this[ROUTES] = ARRAY_SLICE.call(arguments);
 	}, {
-		"displayName" : "pubsub/proxy/promise",
+		"displayName" : "hub/proxy/promise",
 
 		/**
 		 * @inheritdoc
@@ -93,7 +93,7 @@ define([
 						// Push original arguments on args
 						ARRAY_PUSH.apply(args, ARRAY_SLICE.call(arguments));
 
-						return remote.publish.apply(remote, args);
+						return remote.emit.apply(remote, args);
 					};
 
 					var _callback = publish[source] = {};
@@ -101,7 +101,7 @@ define([
 					_callback[CALLBACK] = callback;
 					_callback[PEEK] = peek;
 
-					local.subscribe(source, _callback);
+					local.on(source, _callback);
 				});
 
 				// Iterate subscribe keys
@@ -140,7 +140,7 @@ define([
 						ARRAY_PUSH.apply(args, ARRAY_SLICE.call(arguments));
 
 						// Publish and store promise as result
-						return local.publish.apply(local, args);
+						return local.emit.apply(local, args);
 					};
 
 					var _callback = {};
@@ -148,7 +148,7 @@ define([
 					_callback[CALLBACK] = callback;
 					_callback[PEEK] = peek;
 
-					remote.subscribe(source, _callback);
+					remote.on(source, _callback);
 				});
 			});
 		},
@@ -181,7 +181,7 @@ define([
 					// Check if we should peek
 					if (_callback[PEEK] === true && (value = local.peek(source, empty)) !== empty) {
 						// Push result from publish on results
-						results.push(remote.publish.apply(local, [ source ].concat(value)));
+						results.push(remote.emit.apply(local, [ source ].concat(value)));
 					}
 				});
 
@@ -193,7 +193,7 @@ define([
 					// Check if we should peek
 					if (_callback[PEEK] === true && (value = remote.peek(source, empty)) !== empty) {
 						// Push result from publish on results
-						results.push(local.publish.apply(local, [ source ].concat(value)));
+						results.push(local.emit.apply(local, [ source ].concat(value)));
 					}
 				});
 			});
@@ -222,12 +222,12 @@ define([
 
 				// Iterate publish keys and unsubscribe
 				OBJECT_KEYS(publish).forEach(function (source) {
-					local.unsubscribe(source, publish[source]);
+					local.off(source, publish[source]);
 				});
 
 				// Iterate subscribe keys and unsubscribe
 				OBJECT_KEYS(subscribe).forEach(function (source) {
-					remote.unsubscribe(source, subscribe[source]);
+					remote.off(source, subscribe[source]);
 				});
 			});
 		}

@@ -1,1 +1,1 @@
-# TroopJS PubSub
+# TroopJS Hub

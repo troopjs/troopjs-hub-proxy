@@ -3,6 +3,8 @@
  */
 define([
 	"./version",
+  "./emitter",
+  "./component",
 	"./proxy/deferred",
 	"./proxy/promise"
 ], function (version) {

@@ -13,7 +13,7 @@ module.exports = function(grunt) {
 			"src": ".",
 			"dist": "dist",
 			"footer": "\
-define(['troopjs-pubsub/version'], function (version) {\n\
+define(['troopjs-hub/version'], function (version) {\n\
 	return version;\n\
 });"
 		},
@@ -29,7 +29,7 @@ define(['troopjs-pubsub/version'], function (version) {\n\
 				"keepBuildDir": true,
 				"fileExclusionRegExp": /^(?:\.(?!travis|gitignore)|node_modules|test|guides|(?:version|require|Gruntfile)\.js|package\.json)/,
 				"rawText": {
-					"troopjs-pubsub/version": "define([], { 'toString': function () { return <%= JSON.stringify(pkg.version) %>; } });\n"
+					"troopjs-hub/version": "define([], { 'toString': function () { return <%= JSON.stringify(pkg.version) %>; } });\n"
 				},
 				"wrap": {
 					"end": "<%= build.footer %>"
@@ -39,16 +39,15 @@ define(['troopjs-pubsub/version'], function (version) {\n\
 			"bundles": {
 				"options": {
 					"modules": [{
-						"name": "troopjs-pubsub/main",
+						"name": "troopjs-hub/main",
 						"exclude": [
 							"when/when",
 							"poly/es5",
 							"mu-merge/main",
-							"troopjs-core/component/emitter",
-							"troopjs-core/pubsub/hub"
+							"troopjs-core/component/emitter"
 						],
 						"excludeShallow": [
-							"troopjs-pubsub/main"
+							"troopjs-hub/main"
 						]
 					}]
 				}
