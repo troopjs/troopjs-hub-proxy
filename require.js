@@ -5,7 +5,7 @@
 require({
 	"baseUrl": "bower_components",
 	"packages": [{
-		"name": "troopjs-pubsub",
+		"name": "troopjs-hub-proxy",
 		"location": ".."
 	}]
 });
