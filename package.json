@@ -1,8 +1,8 @@
 {
-	"description": "TroopJS pubsub package",
+	"description": "TroopJS hub proxy package",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/troopjs/troopjs-pubsub.git"
+		"url": "https://github.com/troopjs/troopjs-hub-proxy.git"
 	},
 	"devDependencies": {
 		"grunt": "~0.4",

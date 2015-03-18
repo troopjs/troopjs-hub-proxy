@@ -3,8 +3,8 @@
  */
 define([
 	"./version",
-	"./proxy/deferred",
-	"./proxy/promise"
+	"./deferred",
+	"./promise"
 ], function (version) {
 	return version;
 });
