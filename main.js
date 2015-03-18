@@ -1,20 +1,20 @@
-define('troopjs-pubsub/version',[], { 'toString': function () { return ; } });
+define('troopjs-hub-proxy/version',[], { 'toString': function () { return ; } });
 
 /**
  * @license MIT http://troopjs.mit-license.org/
  */
-define('troopjs-pubsub/proxy/deferred',[
+define('troopjs-hub-proxy/deferred',[
 	"troopjs-core/component/emitter",
-	"troopjs-core/pubsub/hub",
-	"when",
+	"troopjs-hub/emitter",
+	"when/when",
 	"poly/array",
 	"poly/object"
 ], function (Emitter, local, when) {
 	
 
 	/**
-	 * Proxies to hub where the last argument is a {@link Deferred deferred}
-	 * @class pubsub.proxy.deferred
+	 * Proxies to hub where the last argument is a `deferred`
+	 * @class hub.proxy.deferred
 	 * @extend core.component.emitter
 	 */
 
@@ -134,7 +134,7 @@ define('troopjs-pubsub/proxy/deferred',[
 						}
 
 						// Publish with args
-						remote.publish.apply(remote, args);
+						remote.emit.apply(remote, args);
 
 						// Return promise
 						return deferred
@@ -147,7 +147,7 @@ define('troopjs-pubsub/proxy/deferred',[
 					_callback[CALLBACK] = callback;
 
 					// Subscribe from local
-					local.subscribe(source, _callback);
+					local.on(source, _callback);
 				});
 
 				// Iterate subscribe keys
@@ -195,7 +195,7 @@ define('troopjs-pubsub/proxy/deferred',[
 						}
 
 						// Publish on local and store result
-						result = local.publish.apply(local, args);
+						result = local.emit.apply(local, args);
 
 						// If we have a deferred we should chain it to result
 						if (deferred) {
@@ -213,7 +213,7 @@ define('troopjs-pubsub/proxy/deferred',[
 
 					// Subscribe from remote, notice that since we're providing `memory` there _is_ a chance that
 					// we'll get a callback before sig/start
-					remote.subscribe(source, context, memory, callback);
+					remote.on(source, context, memory, callback);
 				});
 			});
 		},
@@ -239,7 +239,7 @@ define('troopjs-pubsub/proxy/deferred',[
 
 				// Iterate publish keys and unsubscribe from local
 				OBJECT_KEYS(publish).forEach(function (source) {
-					local.unsubscribe(source, publish[source]);
+					local.off(source, publish[source]);
 				});
 
 				// Iterate subscribe keys and unsubscribe from remote
@@ -247,19 +247,20 @@ define('troopjs-pubsub/proxy/deferred',[
 					var _callback = subscribe[source];
 
 					// Un-subscribe from remote hub
-					remote.unsubscribe(source, _callback[CONTEXT], _callback[CALLBACK]);
+					remote.off(source, _callback[CONTEXT], _callback[CALLBACK]);
 				});
 			});
 		}
 	});
 });
+
 /**
  * @license MIT http://troopjs.mit-license.org/
  */
-define('troopjs-pubsub/proxy/promise',[
+define('troopjs-hub-proxy/promise',[
 	"troopjs-core/component/emitter",
-	"troopjs-core/pubsub/hub",
-	"when",
+	"troopjs-hub/emitter",
+	"when/when",
 	"poly/array",
 	"poly/object"
 ], function (Emitter, local, when) {
@@ -267,7 +268,7 @@ define('troopjs-pubsub/proxy/promise',[
 
 	/**
 	 * Proxies to hub that returns a {@link Promise promise} that will resolve to the result
-	 * @class pubsub.proxy.promise
+	 * @class hub.proxy.promise
 	 * @extend core.component.emitter
 	 */
 
@@ -348,7 +349,7 @@ define('troopjs-pubsub/proxy/promise',[
 						// Push original arguments on args
 						ARRAY_PUSH.apply(args, ARRAY_SLICE.call(arguments));
 
-						return remote.publish.apply(remote, args);
+						return remote.emit.apply(remote, args);
 					};
 
 					var _callback = publish[source] = {};
@@ -356,7 +357,7 @@ define('troopjs-pubsub/proxy/promise',[
 					_callback[CALLBACK] = callback;
 					_callback[PEEK] = peek;
 
-					local.subscribe(source, _callback);
+					local.on(source, _callback);
 				});
 
 				// Iterate subscribe keys
@@ -395,7 +396,7 @@ define('troopjs-pubsub/proxy/promise',[
 						ARRAY_PUSH.apply(args, ARRAY_SLICE.call(arguments));
 
 						// Publish and store promise as result
-						return local.publish.apply(local, args);
+						return local.emit.apply(local, args);
 					};
 
 					var _callback = {};
@@ -403,7 +404,7 @@ define('troopjs-pubsub/proxy/promise',[
 					_callback[CALLBACK] = callback;
 					_callback[PEEK] = peek;
 
-					remote.subscribe(source, _callback);
+					remote.on(source, _callback);
 				});
 			});
 		},
@@ -436,7 +437,7 @@ define('troopjs-pubsub/proxy/promise',[
 					// Check if we should peek
 					if (_callback[PEEK] === true && (value = local.peek(source, empty)) !== empty) {
 						// Push result from publish on results
-						results.push(remote.publish.apply(local, [ source ].concat(value)));
+						results.push(remote.emit.apply(local, [ source ].concat(value)));
 					}
 				});
 
@@ -448,7 +449,7 @@ define('troopjs-pubsub/proxy/promise',[
 					// Check if we should peek
 					if (_callback[PEEK] === true && (value = remote.peek(source, empty)) !== empty) {
 						// Push result from publish on results
-						results.push(local.publish.apply(local, [ source ].concat(value)));
+						results.push(local.emit.apply(local, [ source ].concat(value)));
 					}
 				});
 			});
@@ -477,17 +478,18 @@ define('troopjs-pubsub/proxy/promise',[
 
 				// Iterate publish keys and unsubscribe
 				OBJECT_KEYS(publish).forEach(function (source) {
-					local.unsubscribe(source, publish[source]);
+					local.off(source, publish[source]);
 				});
 
 				// Iterate subscribe keys and unsubscribe
 				OBJECT_KEYS(subscribe).forEach(function (source) {
-					remote.unsubscribe(source, subscribe[source]);
+					remote.off(source, subscribe[source]);
 				});
 			});
 		}
 	});
 });
-define(['troopjs-pubsub/version'], function (version) {
+
+define(['troopjs-hub-proxy/version'], function (version) {
 	return version;
 });
