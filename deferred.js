@@ -4,9 +4,7 @@
 define([
 	"troopjs-core/component/emitter",
 	"troopjs-hub/emitter",
-	"when/when",
-	"poly/array",
-	"poly/object"
+	"when/when"
 ], function (Emitter, local, when) {
 	"use strict";
 
