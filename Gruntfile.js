@@ -42,7 +42,6 @@ define(['troopjs-hub-proxy/version'], function (version) {\n\
 						"name": "troopjs-hub-proxy/main",
 						"exclude": [
 							"when/when",
-							"poly/es5",
 							"mu-merge/main",
 							"troopjs-core/component/emitter",
 							"troopjs-hub/emitter"
