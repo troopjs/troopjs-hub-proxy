@@ -2,9 +2,11 @@
  * @license MIT http://troopjs.mit-license.org/
  */
 define([
-	"./version",
-	"./deferred",
-	"./promise"
+  "./version",
+  "./deferred",
+  "./promise"
 ], function (version) {
-	return version;
+  "use strict";
+
+  return version;
 });
