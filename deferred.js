@@ -55,9 +55,9 @@ define([
     "displayName": "hub/proxy/deferred",
 
     /**
+     * @handler
      * @inheritdoc
      * @localdoc Initializes proxy topics
-     * @handler
      */
     "sig/initialize": function () {
       var me = this;
@@ -215,9 +215,9 @@ define([
     },
 
     /**
+     * @handler
      * @inheritdoc
      * @localdoc Finalizes proxy topics
-     * @handler
      */
     "sig/finalize": function () {
       var me = this;

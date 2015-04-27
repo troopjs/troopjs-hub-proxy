@@ -39,9 +39,9 @@ define([
     "displayName": "hub/proxy/promise",
 
     /**
+     * @handler
      * @inheritdoc
      * @localdoc Initializes proxy topics
-     * @handler
      */
     "sig/initialize": function () {
       var me = this;
@@ -152,9 +152,9 @@ define([
     },
 
     /**
-     * @inheritdoc
-     * @localdoc Republishes memorized values
      * @handler
+     * @inheritdoc #event-sig/start
+     * @localdoc Republishes memorized values
      */
     "sig/start": function () {
       var me = this;
@@ -201,9 +201,9 @@ define([
     },
 
     /**
+     * @handler
      * @inheritdoc
      * @localdoc Finalizes proxy topics
-     * @handler
      */
     "sig/finalize": function () {
       var me = this;
